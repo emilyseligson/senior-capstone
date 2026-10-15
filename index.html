@@ -70,12 +70,30 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--blue); outline-
   box-shadow: 0 18px 50px rgba(28, 42, 57, 0.12);
   padding: 3.25rem 3.5rem 3rem; text-align: center;
 }
+.title-card {
+  max-width: 900px; margin: 0 auto 2.5rem;
+  background: var(--card); border-radius: 22px;
+  box-shadow: 0 18px 50px rgba(28, 42, 57, 0.12);
+  padding: 2.75rem 3.5rem; text-align: center;
+}
 .hero h1 {
   font-family: var(--serif); color: var(--ink); font-weight: 700;
-  font-size: clamp(2.1rem, 4.5vw, 3.3rem); line-height: 1.15; margin: 0 0 1.25rem;
+  font-size: clamp(1.9rem, 4vw, 2.8rem); line-height: 1.2; margin: 0;
+}
+.hero .subtitle {
+  font-family: var(--serif); color: var(--blue); font-weight: 700;
+  font-size: clamp(1.75rem, 3.5vw, 2.4rem); line-height: 1.2; margin: 0 0 1.25rem;
 }
 .hero .lede { max-width: 62ch; margin: 0 auto; font-size: 1.15rem; line-height: 1.85; }
 .hero .meta { color: var(--muted); margin: 1.75rem 0 0; font-size: 0.98rem; }
+
+.hero-actions { margin: 1.75rem 0 0; }
+.btn {
+  display: inline-block; background: var(--blue); color: #fff;
+  text-decoration: none; font-weight: 500; padding: 0.7rem 1.4rem;
+  border-radius: 999px; transition: background 0.2s;
+}
+.btn:hover { background: var(--ink); }
 
 .spectrum { margin: 2.25rem auto 0; max-width: 620px; }
 .spectrum svg { width: 100%; height: auto; overflow: visible; }
@@ -174,6 +192,14 @@ figure figcaption { color: var(--muted); font-size: 0.9rem; margin-top: 0.6rem; 
 .person .role { color: var(--muted); font-size: 0.95rem; margin: 0 0 0.75rem; }
 .person p { margin: 0 0 0.75rem; font-size: 0.98rem; }
 
+/* video */
+.video-frame {
+  aspect-ratio: 16 / 9; background: #000; border-radius: 16px; overflow: hidden;
+  border: 1px solid var(--line); box-shadow: 0 18px 50px rgba(28, 42, 57, 0.12);
+}
+.video-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+.video-link { color: var(--muted); font-size: 0.95rem; margin: 0.9rem 0 0; }
+
 /* footer */
 footer {
   margin-top: 6rem; background: var(--ink); color: #C9D3DD;
@@ -195,6 +221,7 @@ footer p { margin: 0.3rem 0; }
   .nav.open { display: flex; }
   .hero { padding: 3rem 1rem 4rem; }
   .hero-card { padding: 2.25rem 1.5rem; }
+  .title-card { padding: 2rem 1.5rem; margin-bottom: 1.75rem; }
   section.block { padding: 3.5rem 1.25rem 0.5rem; }
   .panel, .rail-item .panel { padding: 1.4rem; }
   .rail { padding-left: 2.25rem; }
@@ -209,25 +236,28 @@ footer p { margin: 0.3rem 0; }
 
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brand" href="#top">Capstone</a>
+    <a class="brand" href="#top">ESE 4970 Capstone</a>
     <button class="menu-btn" aria-expanded="false" aria-controls="nav">Menu</button>
     <nav class="nav" id="nav" aria-label="Sections">
-      <a href="#overview">Overview</a>
+      <a href="#justification">Justification</a>
       <a href="#how">How It Works</a>
-      <a href="#goals">Goals</a>
+      <a href="#aims">Aims</a>
       <a href="#hardware">Hardware</a>
       <a href="#timeline">Timeline</a>
       <a href="#team">Team</a>
+      <a href="#video">Video</a>
     </nav>
   </div>
 </header>
 
 <main id="top">
 
-  <!-- ... -->
   <div class="hero">
+    <div class="title-card">
+      <h1>FPGA-Based Electrical Impedance Spectroscopy for Skin Tissue Characterization</h1>
+    </div>
     <div class="hero-card">
-      <h1>...</h1>
+      <p class="subtitle">Project Scope</p>
       <p class="lede">We are building a system that sends a current through the skin and extracts the response at several frequencies. The result is an impedance spectrum and it gives information about the structure of the tissue underneath.</p>
       <figure class="spectrum">
         <svg viewBox="0 0 620 260" role="img" aria-label="Illustration of an impedance spectrum: measured points along an arc, from low frequency on the right to high frequency on the left.">
@@ -254,13 +284,13 @@ footer p { margin: 0.3rem 0; }
     </div>
   </div>
 
-  <!-- Overview -->
-  <section class="block" id="overview">
+  <!-- Justification -->
+  <section class="block" id="justification">
     <h2>Justification</h2>
     <div class="prose">
       <p>Currently, suspicious lesions are commonly evaluated through excision biopsy, which provides tissue for histological diagnosis. However, these procedures are invasive and can require extensive planning and post-procedure wound care to reduce risks such as bleeding and infection.</p>
-      <p>EIS provides a noninvasive method for quantitatively evaluating tissue electrical properties and could provide additional information when evaluating potentially abnormal lesions. This is particularly significant for melanoma because when detected early, the five-year survival rate is more than 99%. Also, existing systems are not commericially available and are very expensive.</p>
-      <p>Our goal is to build an accessible, low-cost hardware make reliable quantitative skin measurements. Our prototype is not a diagnostic tool but rather a proof of concept and a foundation for future work on affordable tissue assessment.</p>
+      <p>EIS provides a noninvasive method for quantitatively evaluating tissue electrical properties and could provide additional information when evaluating potentially abnormal lesions. This is particularly significant for melanoma because when detected early, the five-year survival rate is more than 99%. Also, existing systems are not commercially available and are very expensive.</p>
+      <p>Our goal is to build an accessible, low-cost hardware that makes reliable quantitative skin measurements. Our prototype is not a diagnostic tool but rather a proof of concept and a foundation for future work on affordable tissue assessment.</p>
     </div>
     <div class="facts">
       <div class="fact"><strong>1–100 kHz</strong><span>Frequency range</span></div>
@@ -311,9 +341,9 @@ footer p { margin: 0.3rem 0; }
     </div>
   </section>
 
-  <!-- goals -->
-  <section class="block" id="goals">
-    <h2>... things we want to acheive</h2>
+  <!-- Aims -->
+  <section class="block" id="aims">
+    <h2>Aims</h2>
     <div class="table-wrap">
       <table class="specs">
         <tr><th>Signal generation</th><td>At least 20 frequencies from 1 kHz to 100 kHz, each within 1% of its target, with current inside the safety limits at every step.</td></tr>
@@ -399,6 +429,16 @@ footer p { margin: 0.3rem 0; }
         <p><a href="mailto:e.d.seligson@wustl.edu">e.d.seligson@wustl.edu</a></p>
       </div>
     </div>
+  </section>
+
+  <!-- video -->
+  <section class="block" id="video">
+    <h2>Project Video</h2>
+    <div class="video-frame">
+      <iframe src="https://drive.google.com/file/d/1-Ab6vnzBT8ohUhOKshS1TeRsffRf0fDj/preview"
+        title="Project video" allow="autoplay; fullscreen" allowfullscreen loading="lazy"></iframe>
+    </div>
+    <p class="video-link"><a href="https://drive.google.com/file/d/1-Ab6vnzBT8ohUhOKshS1TeRsffRf0fDj/view?usp=share_link" target="_blank" rel="noopener">Open it in Google Drive</a>.</p>
   </section>
 
 </main>
