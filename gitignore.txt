@@ -1,11 +1,24 @@
-.idea
-.Xil
-*.cache
-*.runs
-*.sim
-*.gen
-*.hw
-*.ip_user_files
+
+# IDE files
+.idea/
+
+# Vivado temporary and generated files
+.Xil/
+*.cache/
+*.runs/
+*.sim/
+*.gen/
+*.hw/
+*.ip_user_files/
+
+# Logs and reports
 *.log
 *.jou
 *.str
+*.wdf
+*.wdb
+*.xml.backup
+
+# Operating system files
+.DS_Store
+Thumbs.db
