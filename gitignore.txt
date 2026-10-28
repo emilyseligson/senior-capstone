@@ -1,0 +1,11 @@
+.idea
+.Xil
+*.cache
+*.runs
+*.sim
+*.gen
+*.hw
+*.ip_user_files
+*.log
+*.jou
+*.str
