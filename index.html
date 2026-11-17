@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PYNQ-Z2-Based Electrical Impedance Spectroscopy for Skin Tissue Characterization | ESE 4970</title>
+<meta name="description" content="A low-cost FPGA system for quantitative, noninvasive assessment of the electrical properties of skin tissue. ESE 4970 capstone at Washington University in St. Louis.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --night: #13253A;
+  --ink: #1C2A39;
+  --cream: #F4F1EA;
+  --card: #FBFAF6;
+  --sky: #CFE6F8;
+  --peach: #FDE5D6;
+  --lav: #E4DDFB;
+  --mint: #DDF0E4;
+  --butter: #FBF0C9;
+  --rose: #F9DCE2;
+  --blue: #2F5D8A;
+  --text: #3A4756;
+  --muted: #6B7785;
+  --line: #C9D0D8;
+  --soft: #E8EDF2;
+  --serif: "Playfair Display", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --sans: "DM Sans", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; font-family: var(--sans); color: var(--text); background: var(--cream); font-size: 1.0625rem; line-height: 1.7; }
+img { max-width: 100%; display: block; }
+a { color: var(--blue); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+
+/* ---------- corner logo ---------- */
+.logo {
+  position: fixed; top: 16px; left: 16px; z-index: 40;
+  display: grid; place-items: center; width: 104px; height: 76px;
+  border-radius: 24px; background: transparent; border: 1.5px solid transparent;
+  transition: background 0.35s, border-color 0.35s; cursor: pointer;
+}
+.logo svg { position: absolute; width: 80px; height: 52px; transition: opacity 0.35s, transform 0.5s cubic-bezier(0.3, 1.4, 0.5, 1); }
+.logo .color { opacity: 0; transform: rotate(-4deg) scale(0.9); }
+.logo:hover, .logo:focus-visible { background: var(--cream); }
+.logo:hover .line, .logo:focus-visible .line { opacity: 0; }
+.logo:hover .color, .logo:focus-visible .color { opacity: 1; transform: none; }
+.logo .line * { fill: none; stroke: var(--ink); stroke-width: 16; stroke-linejoin: round; transition: stroke 0.3s; }
+.logo .line .dotrow { stroke-dasharray: 2 26; stroke-linecap: round; stroke-width: 18; }
+body.on-dark .logo .line * { stroke: var(--cream); }
+.color .led { animation: led 1s steps(1) infinite; }
+.color .pin { fill: #D4AF37; animation: pin 0.9s steps(1) infinite; }
+@keyframes led { 50% { fill: #7A1424; } }
+@keyframes pin { 50% { fill: #5A4712; } }
+
+/* ---------- menu tile ---------- */
+.menu {
+  position: fixed; top: 16px; right: 16px; z-index: 40; width: 68px; height: 68px;
+  background: var(--cream); border: 1.5px solid var(--ink); border-radius: 22px; cursor: pointer;
+  display: grid; place-items: center; color: var(--ink); transition: background 0.35s;
+}
+.menu:hover, .menu[aria-expanded="true"] { background: var(--sky); }
+.menu svg { width: 36px; height: 26px; overflow: visible; }
+.menu path { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
+
+/* ---------- menu panel ---------- */
+.scrim { position: fixed; inset: 0; background: rgba(19, 37, 58, 0.4); z-index: 30; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 92vw); z-index: 35;
+  background: var(--night); color: var(--cream); padding: 110px 2.5rem 2rem; overflow-y: auto;
+  transform: translateX(100%); visibility: hidden;
+  transition: transform 0.45s cubic-bezier(0.3, 1, 0.4, 1), visibility 0s linear 0.45s;
+}
+body.menu-open .scrim { opacity: 1; pointer-events: auto; }
+body.menu-open .drawer { transform: none; visibility: visible; transition: transform 0.45s cubic-bezier(0.3, 1, 0.4, 1), visibility 0s; }
+.drawer ul { list-style: none; margin: 0; padding: 0; }
+.drawer li a {
+  display: block; color: var(--cream); text-decoration: none; font-family: var(--serif);
+  font-size: 2.3rem; line-height: 1.15; padding: 0.45rem 0.9rem; margin: 0 -0.9rem; border-radius: 999px;
+  transition: background 0.25s, color 0.25s;
+}
+.drawer li a:hover { background: var(--hl, var(--sky)); color: var(--ink); }
+.drawer li a.active { font-style: italic; }
+.drawer ul.sub { margin: 0 0 0 0.9rem; border-left: 1.5px solid rgba(244, 241, 234, 0.25); padding-left: 0.6rem;
+  max-height: 0; overflow: hidden; opacity: 0; transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease; }
+.drawer li.has-sub:hover ul.sub, .drawer li.has-sub:focus-within ul.sub { max-height: 260px; opacity: 1; margin: 0.2rem 0 0.8rem 0.9rem; }
+@media (hover: none) { .drawer ul.sub { max-height: none; opacity: 1; margin: 0.2rem 0 0.8rem 0.9rem; } }
+.drawer ul.sub li a {
+  font-family: var(--mono); font-size: 0.9rem; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0.35rem 0.9rem; margin: 0; color: #C9D6E3;
+}
+.drawer ul.sub li a:hover { background: var(--sky); color: var(--ink); }
+.drawer .gh { display: inline-block; margin-top: 2rem; }
+
+/* ---------- pages ---------- */
+.page { display: none; }
+.page.current { display: block; animation: pagein 0.45s ease; }
+@keyframes pagein { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- home: full-screen signal hero ---------- */
+.hero { position: relative; height: 100vh; min-height: 600px; background: var(--night); overflow: hidden; }
+.hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+.hero::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(19,37,58,0) 45%, rgba(19,37,58,0.7) 100%); }
+.hero h1 {
+  position: absolute; left: 6vw; right: 6vw; bottom: 9vh; z-index: 2; margin: 0; max-width: 24ch;
+  color: var(--cream); font-family: var(--serif); font-weight: 500; letter-spacing: -0.02em;
+  font-size: clamp(2.4rem, 5.4vw, 5.4rem); line-height: 1.04; pointer-events: none;
+}
+
+/* ---------- big-word bands ---------- */
+.band { position: relative; overflow: hidden; padding: 7rem 6vw 7.5rem; }
+.band-grid { display: grid; grid-template-columns: 1fr 1.15fr; gap: 4rem; align-items: start; position: relative; z-index: 1; }
+.band.sky { background: var(--sky); } .band.peach { background: var(--peach); }
+.band.lav { background: var(--lav); } .band.mint { background: var(--mint); }
+.band.butter { background: var(--butter); } .band.rose { background: var(--rose); }
+.band.cream { background: var(--cream); }
+.band.night { background: var(--night); color: #D6DEE7; }
+.band.night .big { color: var(--cream); }
+.band.night .tag { color: #9FC3E6; }
+.band .blob { position: absolute; z-index: 0; pointer-events: none; }
+.big { margin: 0; font-family: var(--serif); font-weight: 500; color: var(--ink); font-size: clamp(4.5rem, 11vw, 10.5rem); line-height: 0.92; letter-spacing: -0.03em; }
+.tag { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.85rem; color: var(--blue); margin: 0 0 1rem; }
+.lead { font-size: 1.22rem; line-height: 1.7; color: var(--ink); margin: 0; }
+.band .prose p { color: var(--ink); }
+.band .wide { position: relative; z-index: 1; margin-top: 3rem; }
+
+/* inner page head */
+.page-head { position: relative; overflow: hidden; padding: 9rem 6vw 4.5rem; }
+.page-head .big { font-size: clamp(3.8rem, 9vw, 8.5rem); }
+.page-head p.intro { max-width: 46ch; margin: 1.5rem 0 0; font-size: 1.2rem; color: var(--ink); position: relative; z-index: 1; }
+.page-head .big { position: relative; z-index: 1; }
+
+/* pills */
+.pill {
+  display: inline-block; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.9rem;
+  color: var(--cream); background: var(--ink); border: 1.5px solid var(--ink); border-radius: 999px;
+  padding: 0.8rem 1.35rem; text-decoration: none; transition: background 0.25s, color 0.25s; margin-top: 1.5rem;
+}
+.pill:hover { background: transparent; color: var(--ink); }
+.pill.light { background: var(--cream); color: var(--ink); border-color: var(--cream); }
+.pill.light:hover { background: transparent; color: var(--cream); }
+
+/* ---------- footer tiles ---------- */
+footer { background: var(--night); color: var(--cream); margin-top: 0; }
+.foot-info { display: grid; grid-template-columns: 1.5fr 1fr 1.1fr; gap: 3rem; padding: 6rem 6vw 5rem; }
+.foot-big { font-family: var(--serif); font-size: clamp(1.9rem, 3vw, 2.8rem); line-height: 1.2; margin: 0 0 2rem; color: var(--cream); max-width: 17ch; }
+.arrow-pill {
+  display: inline-flex; align-items: center; gap: 1rem; color: var(--cream); text-decoration: none;
+  font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; font-size: 1rem;
+  border: 1.5px solid var(--cream); border-radius: 999px; padding: 0 0 0 1.4rem; transition: background 0.25s, color 0.25s;
+}
+.arrow-pill .circ { width: 56px; height: 56px; border: 1.5px solid var(--cream); border-radius: 50%; display: grid; place-items: center; margin: -1.5px -1.5px -1.5px 0; }
+.arrow-pill svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.arrow-pill:hover { background: var(--sky); color: var(--ink); border-color: var(--sky); }
+.arrow-pill:hover .circ { border-color: var(--ink); }
+.foot-col h3 { font-family: var(--mono); font-weight: 500; text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.85rem; color: #9FC3E6; margin: 0 0 1rem; }
+.foot-col p { font-family: var(--mono); font-size: 0.95rem; line-height: 1.7; color: #D6DEE7; margin: 0 0 1.1rem; }
+.foot-col b { color: var(--cream); font-weight: 500; }
+.foot-col a { color: #D6DEE7; }
+.foot-col a:hover { color: var(--sky); }
+.tiles { display: grid; grid-template-columns: 1fr 1.2fr 1fr; }
+.tiles.r2 { grid-template-columns: 1fr 1.2fr 1fr; }
+.tile {
+  display: grid; place-items: center; height: 190px; text-decoration: none; color: var(--cream); text-align: center;
+  font-family: var(--serif); font-size: clamp(1.8rem, 3.2vw, 3.4rem); letter-spacing: -0.02em; padding: 0 1rem;
+  border: 1.5px solid rgba(244, 241, 234, 0.75); margin: -0.75px;
+  transition: background 0.3s, color 0.3s, border-radius 0.35s;
+}
+.tile.pillish { border-radius: 999px; }
+.tile:hover { background: var(--hl); color: var(--ink); border-color: var(--hl); border-radius: 40px; }
+.tile.pillish:hover { border-radius: 0; }
+.tile .arrow-out { font-family: var(--mono); font-size: 0.5em; margin-left: 0.3em; }
+.foot-note { padding: 2.2rem 6vw; font-family: var(--mono); font-size: 0.82rem; letter-spacing: 0.04em; color: #B9C6D3; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.foot-note a { color: #DCE6F0; }
+.to-top {
+  position: fixed; right: 18px; bottom: 18px; z-index: 25; width: 56px; height: 56px; border-radius: 50%;
+  background: var(--cream); color: var(--ink); border: 1.5px solid var(--ink); display: grid; place-items: center;
+  text-decoration: none; font-size: 1.4rem; opacity: 0; pointer-events: none; transition: opacity 0.3s, background 0.25s;
+}
+.to-top.show { opacity: 1; pointer-events: auto; }
+.to-top:hover { background: var(--sky); }
+@media (max-width: 900px) { .foot-info { grid-template-columns: 1fr; gap: 2rem; padding: 4rem 1.4rem 3rem; } }
+
+/* ---------- team page (accordion list) ---------- */
+.team-wrap { display: grid; grid-template-columns: 1fr 1.25fr; gap: 6vw; padding: 9rem 6vw 7rem; align-items: start; }
+.team-intro { position: sticky; top: 6.5rem; }
+.tag-strong { font-family: var(--mono); font-weight: 500; text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.95rem; color: var(--ink); margin: 0 0 1.5rem; }
+.team-big { font-family: var(--serif); font-weight: 500; color: var(--ink); font-size: clamp(2.4rem, 4.2vw, 4rem); line-height: 1.08; letter-spacing: -0.02em; margin: 0 0 1.75rem; }
+.team-word { font-size: clamp(3.8rem, 9vw, 8.5rem); margin: 0 0 2.5rem; }
+.team-lead { font-size: 1.15rem; color: var(--ink); max-width: 36ch; margin: 0 0 2.2rem; }
+.team-filter { list-style: none; margin: 0; padding: 0; border-left: 1.5px solid var(--ink); }
+.team-filter a { display: block; padding: 0.55rem 0 0.55rem 1.1rem; font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.92rem; color: var(--ink); text-decoration: none; position: relative; }
+.team-filter a.on { font-weight: 500; }
+.team-filter a.on::before { content: ""; position: absolute; left: -1.5px; top: 0; bottom: 0; width: 5px; background: var(--ink); }
+.team-filter a:hover { color: var(--blue); }
+.person-row { border-bottom: 1.5px solid var(--ink); }
+.person-head {
+  width: 100%; background: none; border: 0; cursor: pointer; text-align: left; color: var(--ink);
+  display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; padding: 2.2rem 0;
+  font: inherit;
+}
+.pname { display: block; font-family: var(--serif); font-weight: 500; font-size: clamp(2rem, 3.4vw, 3.3rem); line-height: 1.1; letter-spacing: -0.01em; }
+.prole { display: block; margin-top: 0.7rem; font-family: var(--mono); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.92rem; }
+.plus {
+  flex: 0 0 auto; width: 96px; height: 96px; border: 1.5px solid var(--ink); border-radius: 50%; position: relative;
+  transition: background 0.3s, transform 0.4s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.plus::before, .plus::after { content: ""; position: absolute; left: 50%; top: 50%; width: 40px; height: 1.5px; background: var(--ink); transform: translate(-50%, -50%); }
+.plus::after { transform: translate(-50%, -50%) rotate(90deg); }
+.person-head:hover .plus { background: var(--sky); }
+.person-head[aria-expanded="true"] .plus { transform: rotate(45deg); background: var(--sky); }
+.person-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.45s ease; }
+.person-body > div { overflow: hidden; }
+.person-body p { margin: 0 0 1rem; max-width: 52ch; font-size: 1.1rem; color: var(--ink); }
+.person-body p:last-child { margin-bottom: 2.2rem; font-family: var(--mono); font-size: 0.98rem; }
+.person-row.open .person-body { grid-template-rows: 1fr; }
+@media (max-width: 900px) {
+  .team-wrap { grid-template-columns: 1fr; padding-top: 7.5rem; }
+  .team-intro { position: static; }
+  .plus { width: 64px; height: 64px; } .plus::before, .plus::after { width: 26px; }
+}
+
+/* ---------- timeline roadmap ---------- */
+.tl-summary { display: grid; grid-template-columns: auto 1fr; gap: 3rem; align-items: center; margin-bottom: 2.5rem; }
+.tl-stat strong { font-family: var(--serif); font-weight: 500; font-size: clamp(3.5rem, 7vw, 6rem); line-height: 1; color: var(--ink); margin-right: 0.6rem; }
+.tl-stat span { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.9rem; color: var(--ink); }
+.tl-progress { height: 14px; border-radius: 999px; background: var(--soft); border: 1.5px solid var(--ink); overflow: hidden; }
+.tl-progress span { display: block; height: 100%; width: 0; background: var(--ink); border-radius: 999px; transition: width 1.2s ease; }
+.tl-legend { display: flex; flex-wrap: wrap; gap: 1.4rem; margin: 0.9rem 0 0; font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.lg { display: inline-block; vertical-align: -2px; margin-right: 0.45rem; width: 22px; height: 12px; border-radius: 999px; }
+.lg.done { background: var(--ink); }
+.lg.open { background: var(--sky); border: 1.5px solid var(--ink); }
+.lg.today { width: 2px; height: 14px; border-radius: 0; background: #C2410C; }
+
+.roadmap-scroll { overflow-x: auto; border: 1.5px solid var(--ink); border-radius: 18px; background: var(--card); }
+.roadmap { min-width: 1000px; display: grid; grid-template-columns: 300px 1fr; position: relative; }
+.rm-axis-label, .rm-label { padding: 0 1.1rem; border-right: 1.5px solid var(--line); display: flex; align-items: center; gap: 0.6rem; }
+.rm-axis-label { font-family: var(--mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); border-bottom: 1.5px solid var(--ink); }
+.rm-axis { position: relative; height: 56px; border-bottom: 1.5px solid var(--ink); }
+.rm-month { position: absolute; top: 8px; font-family: var(--mono); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink); font-weight: 500; }
+.rm-week { position: absolute; bottom: 7px; font-family: var(--mono); font-size: 0.72rem; color: var(--muted); transform: translateX(-50%); }
+.rm-group { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; padding: 1rem 1.1rem 0.4rem; background: var(--soft); border-top: 1.5px solid var(--line); }
+.rm-group h3 { margin: 0 !important; font-family: var(--serif); font-weight: 500; font-size: 1.25rem; color: var(--ink); }
+.rm-group span { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.rm-label { font-size: 0.95rem; color: var(--ink); min-height: 44px; line-height: 1.3; padding-top: 0.35rem; padding-bottom: 0.35rem; }
+.rm-label em { font-style: normal; font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin-left: auto; }
+.rm-label .st { flex: 0 0 auto; width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ink); display: grid; place-items: center; }
+.rm-label .st.done { background: var(--ink); }
+.rm-label .st.done::after { content: ""; width: 6px; height: 3px; border-left: 1.6px solid var(--cream); border-bottom: 1.6px solid var(--cream); transform: rotate(-45deg) translate(1px, -1px); }
+.rm-track { position: relative; min-height: 44px; border-bottom: 1px solid #E3E8EE; }
+.rm-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: #E3E8EE; }
+.rm-bar {
+  position: absolute; top: 50%; height: 20px; transform: translateY(-50%); border-radius: 999px; cursor: default;
+  border: 1.5px solid var(--ink); background: var(--ink); transition: box-shadow 0.2s, transform 0.2s;
+}
+.rm-bar.open { background: var(--sky); }
+.rm-bar.ongoing { border-right: 0; border-radius: 999px 0 0 999px; background: linear-gradient(90deg, var(--sky) 60%, rgba(207, 230, 248, 0)); }
+.rm-bar:hover { box-shadow: 0 0 0 4px rgba(47, 93, 138, 0.2); z-index: 3; }
+.rm-seg { font-family: var(--mono); font-size: 0.68rem; color: var(--cream); display: grid; place-items: center; }
+.rm-bar.open.rm-seg { color: var(--ink); }
+.rm-today { position: absolute; top: 0; bottom: 0; width: 2px; background: #C2410C; z-index: 4; pointer-events: none; }
+.rm-today::before { content: "Today"; position: absolute; top: 34px; left: 6px; font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: #C2410C; background: var(--card); padding: 0 4px; }
+.rm-tip {
+  position: fixed; z-index: 60; pointer-events: none; background: var(--night); color: var(--cream); border-radius: 12px;
+  padding: 0.6rem 0.85rem; font-size: 0.88rem; line-height: 1.4; max-width: 280px; opacity: 0; transition: opacity 0.15s;
+}
+.rm-tip b { display: block; font-weight: 500; }
+.rm-tip span { font-family: var(--mono); font-size: 0.78rem; color: #B9C6D3; }
+.rm-tip.show { opacity: 1; }
+.tl-next { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 2rem; margin-top: 2rem; }
+.tl-next .tag { margin: 0; flex-basis: 100%; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.chip { border: 1.5px dashed var(--ink); border-radius: 999px; padding: 0.5rem 1rem; font-size: 0.95rem; color: var(--ink); }
+.chip em { font-style: normal; font-family: var(--mono); font-size: 0.8rem; color: var(--muted); margin-left: 0.3rem; }
+.tl-next .pill { margin-top: 0; }
+.rail-item.now::before { background: var(--sky); box-shadow: 0 0 0 6px rgba(207, 230, 248, 0.9); }
+@media (max-width: 900px) { .tl-summary { grid-template-columns: 1fr; gap: 1rem; } }
+
+/* ---------- two videos side by side ---------- */
+.video-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+.video-pair figure { margin: 0; }
+.video-pair figcaption { margin-top: 0.8rem; font-family: var(--mono); font-size: 0.9rem; letter-spacing: 0.04em; color: var(--ink); }
+.video-pair figcaption a { color: var(--ink); }
+@media (max-width: 900px) { .video-pair { grid-template-columns: 1fr; } }
+
+/* sections */
+section.block { max-width: none; margin: 0; padding: 4.5rem 6vw 1rem; }
+section.block h2 { font-family: var(--serif); color: var(--ink); font-weight: 700; font-size: clamp(1.8rem, 3.5vw, 2.4rem); margin: 0 0 1.5rem; line-height: 1.2; }
+section.block h3 { font-family: var(--serif); color: var(--ink); font-size: 1.3rem; margin: 0 0 0.5rem; }
+.prose { max-width: 82ch; }
+.prose p { margin: 0 0 1.15rem; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 2rem 2.25rem; }
+
+.facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 2rem; }
+.fact { border-left: 3px solid var(--blue); padding: 0.25rem 0 0.25rem 1.1rem; }
+.fact strong { display: block; font-family: var(--serif); color: var(--ink); font-size: 1.9rem; line-height: 1.2; }
+.fact span { color: var(--muted); font-size: 0.95rem; }
+
+/* home: explore cards */
+.cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.trio .panel p { margin: 0; font-size: 0.98rem; }
+.card {
+  display: block; text-decoration: none; color: var(--text); background: var(--card);
+  border: 1px solid var(--line); border-radius: 16px; padding: 1.5rem 1.6rem 1.4rem;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.card:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(28, 42, 57, 0.1); border-color: var(--blue); }
+.card .num { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+.card h3 { margin: 0.2rem 0 0.35rem !important; }
+.card p { margin: 0; font-size: 0.97rem; }
+.card .go { display: inline-block; margin-top: 0.8rem; color: var(--blue); font-weight: 500; font-size: 0.95rem; }
+
+/* pipeline + rail */
+.pipeline { display: flex; align-items: stretch; gap: 0.5rem; overflow-x: auto; padding: 0.5rem 0 1rem; }
+.stage { flex: 1 0 150px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1rem; text-align: center; font-size: 0.95rem; }
+.stage b { display: block; color: var(--ink); font-size: 1rem; margin-bottom: 0.2rem; }
+.arrow { flex: 0 0 auto; align-self: center; color: var(--blue); font-size: 1.3rem; }
+.rail { position: relative; padding-left: 3rem; margin-top: 2rem; }
+.rail::before { content: ""; position: absolute; left: 13px; top: 0.75rem; bottom: 0.75rem; width: 2px; background: var(--line); }
+.rail-item { position: relative; margin-bottom: 1.5rem; }
+.rail-item::before { content: ""; position: absolute; left: -2.55rem; top: 1.7rem; width: 14px; height: 14px; border-radius: 50%; background: var(--card); border: 3px solid var(--blue); }
+.rail-item .panel { padding: 1.5rem 2rem; }
+.rail-item .when { color: var(--muted); font-size: 0.95rem; margin: 0 0 0.25rem; }
+.rail-item p { margin: 0.25rem 0 0; max-width: 90ch; }
+.rail-item.done::before { background: var(--blue); }
+
+/* playground */
+.playground { margin-top: 3rem; }
+.playground h3 { margin-bottom: 0.25rem; }
+.playground .sub { color: var(--muted); margin: 0 0 1.5rem; font-size: 0.98rem; }
+.pg-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 2rem; align-items: center; }
+.pg-plot svg { width: 100%; height: auto; overflow: visible; }
+.pg-controls label { display: block; font-size: 0.95rem; color: var(--ink); margin-bottom: 1rem; }
+.pg-controls label span { float: right; color: var(--blue); font-variant-numeric: tabular-nums; }
+.pg-controls input[type=range] { width: 100%; accent-color: var(--blue); margin-top: 0.35rem; }
+.pg-readout { font-size: 0.9rem; color: var(--muted); min-height: 1.5em; margin: 0.5rem 0 0; }
+.pg-dot { cursor: pointer; transition: r 0.15s; }
+.pg-dot:hover { r: 7; }
+
+/* tables */
+.specs { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 16px; overflow: hidden; border: 1px solid var(--line); }
+.specs th, .specs td { text-align: left; padding: 1rem 1.25rem; border-bottom: 1px solid #DCE4EC; vertical-align: top; }
+.specs th { font-family: var(--serif); color: var(--ink); font-size: 1.05rem; width: 32%; font-weight: 700; }
+.specs thead th { font-family: var(--sans); font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); background: var(--soft); width: auto; }
+.specs tr:last-child th, .specs tr:last-child td { border-bottom: 0; }
+.table-wrap { overflow-x: auto; }
+.pill { display: inline-block; padding: 0.15rem 0.7rem; border-radius: 999px; font-size: 0.85rem; font-weight: 500; white-space: nowrap; }
+.pill.pending { background: #EEF1F4; color: var(--muted); border: 1px dashed var(--line); }
+.pill.met { background: #DDF1E4; color: #1F6B3A; }
+.pill.partial { background: #FCEBD7; color: #9A5A12; }
+
+/* figures */
+.two-col { display: grid; grid-template-columns: 1.3fr 1fr; gap: 2rem; align-items: start; }
+.fig-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+.fig-grid.three { grid-template-columns: repeat(3, 1fr); }
+figure { margin: 0; }
+.frame { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 0.75rem; }
+.frame img { border-radius: 8px; width: 100%; }
+.placeholder {
+  aspect-ratio: 16 / 10; display: grid; place-items: center; text-align: center;
+  background: repeating-linear-gradient(45deg, #F3F6F9, #F3F6F9 10px, #EAF0F5 10px, #EAF0F5 20px);
+  color: var(--muted); border-radius: 8px; padding: 1rem; font-size: 0.95rem;
+}
+figure figcaption { color: var(--muted); font-size: 0.9rem; margin-top: 0.6rem; }
+.parts { list-style: none; margin: 0; padding: 0; }
+.parts li { padding: 0.7rem 0; border-bottom: 1px solid #DCE4EC; }
+.parts li:last-child { border-bottom: 0; }
+
+.note { background: var(--soft); border-radius: 16px; padding: 1.75rem 2.25rem; margin-top: 2rem; border-left: 4px solid var(--blue); }
+.note p { margin: 0; max-width: 95ch; }
+
+/* team */
+.team { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+.person .role { color: var(--muted); font-size: 0.95rem; margin: 0 0 0.75rem; }
+.person p { margin: 0 0 0.75rem; font-size: 0.98rem; }
+
+/* video */
+.video-frame { aspect-ratio: 16 / 9; background: #000; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 18px 50px rgba(28, 42, 57, 0.12); }
+.video-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+.video-link { color: var(--muted); font-size: 0.95rem; margin: 0.9rem 0 0; }
+
+/* paper */
+.paper-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 2rem; align-items: start; }
+.doc-frame { aspect-ratio: 8.5 / 11; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.doc-frame object, .doc-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+.doc-frame .placeholder { aspect-ratio: auto; height: 100%; border-radius: 0; }
+.btn { display: inline-block; background: var(--blue); color: #fff; text-decoration: none; font-weight: 500; padding: 0.7rem 1.4rem; border-radius: 999px; transition: background 0.2s; margin: 0.4rem 0.5rem 0 0; }
+.btn:hover { background: var(--ink); }
+.btn.ghost { background: transparent; color: var(--blue); border: 1px solid var(--blue); }
+.btn.ghost:hover { background: var(--soft); }
+
+/* citations + references */
+.cite { font-size: 0.8em; text-decoration: none; vertical-align: super; line-height: 0; }
+.cite:hover { text-decoration: underline; }
+.refs { margin: 0; padding-left: 1.75rem; max-width: 80ch; font-size: 0.95rem; }
+.refs li { margin-bottom: 0.9rem; padding: 0.2rem 0.4rem; overflow-wrap: anywhere; border-radius: 6px; transition: background 0.6s; }
+.refs li.hl { background: var(--soft); }
+
+
+
+/* spectrum illustration */
+.spectrum { margin: 0; max-width: 640px; }
+.spectrum svg { width: 100%; height: auto; overflow: visible; }
+.spectrum figcaption { color: var(--muted); font-size: 0.9rem; margin-top: 0.5rem; }
+.arc { stroke-dasharray: 1000; stroke-dashoffset: 1000; }
+.dot { opacity: 0; }
+.spectrum.in .arc { animation: draw 2.4s ease-out 0.2s forwards; }
+.spectrum.in .dot { animation: appear 0.4s ease-out forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes appear { to { opacity: 1; } }
+
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.reveal.in { opacity: 1; transform: none; }
+section.block h2 { font-weight: 500; }
+.band .facts { margin-top: 0; }
+.band .fact { border-left-color: var(--ink); }
+.band.night .video-link, .band.night .video-link a { color: #B9C6D3; }
+
+@media (max-width: 900px) {
+  .band-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  .tiles, .tiles.r2 { grid-template-columns: 1fr 1fr; }
+  .tile { height: 130px; }
+  .facts, .team, .cards, .trio, .fig-grid, .fig-grid.three { grid-template-columns: 1fr; }
+  .pg-grid, .two-col, .paper-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .tiles, .tiles.r2 { grid-template-columns: 1fr; }
+  .logo { width: 84px; height: 62px; } .logo svg { width: 64px; height: 42px; }
+  .menu { width: 58px; height: 58px; }
+  .band, .page-head { padding-left: 1.4rem; padding-right: 1.4rem; }
+  section.block { padding: 3rem 1.4rem 0.5rem; }
+  .specs th { width: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spectrum .arc { animation: none; stroke-dashoffset: 0; } .spectrum .dot { animation: none; opacity: 1; }
+  .page.current { animation: none; } html { scroll-behavior: auto; }
+}
+
+
+/* ---------- design page: accordion lists, plain figures, safety rows ---------- */
+.split { display: grid; grid-template-columns: 1fr 1.05fr; gap: 5vw; align-items: start; }
+.split h2 { margin-bottom: 1.5rem; }
+.side-lead { font-size: 1.2rem; color: var(--ink); max-width: 34ch; margin: 0; }
+.acc { border-top: 1.5px solid var(--ink); }
+.acc-row { border-bottom: 1.5px solid var(--ink); }
+.acc-head {
+  width: 100%; background: none; border: 0; cursor: pointer; text-align: left; color: var(--ink); font: inherit;
+  display: flex; justify-content: space-between; align-items: center; gap: 1.5rem; padding: 1.4rem 0;
+}
+.acc-name { display: block; font-family: var(--serif); font-weight: 500; font-size: clamp(1.6rem, 2.4vw, 2.3rem); line-height: 1.1; letter-spacing: -0.01em; }
+.acc-tag { display: block; margin-top: 0.45rem; font-family: var(--mono); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.82rem; color: var(--muted); }
+.chev {
+  flex: 0 0 auto; width: 64px; height: 64px; border: 1.5px solid var(--ink); border-radius: 50%; display: grid; place-items: center;
+  transition: background 0.3s, transform 0.4s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.chev svg { width: 26px; height: 26px; fill: none; stroke: var(--ink); stroke-width: 1.5; }
+.acc-head:hover .chev { background: var(--sky); }
+.acc-head[aria-expanded="true"] .chev { transform: rotate(180deg); background: var(--sky); }
+.acc-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.45s ease; }
+.acc-body > div { overflow: hidden; }
+.acc-body p { margin: 0 0 1.6rem; max-width: 56ch; font-size: 1.08rem; color: var(--ink); }
+.acc-row.open .acc-body { grid-template-rows: 1fr; }
+.plain-fig img { width: 100%; border-radius: 14px; }
+.plain-fig figcaption { font-family: var(--mono); font-size: 0.82rem; letter-spacing: 0.03em; color: var(--muted); margin-top: 0.8rem; }
+.photo-pair { display: grid; grid-template-columns: 1.15fr 1fr; gap: 2rem; align-items: start; }
+.photo-pair img { aspect-ratio: 4 / 3; object-fit: cover; }
+.safety { border-top: 1.5px solid var(--ink); }
+.s-row { display: grid; grid-template-columns: minmax(180px, 0.6fr) 1.4fr; gap: 2rem; align-items: baseline; padding: 1.6rem 0; border-bottom: 1.5px solid var(--ink); }
+.s-row strong { font-family: var(--serif); font-weight: 500; font-size: clamp(2.2rem, 4vw, 3.6rem); line-height: 1; color: var(--ink); letter-spacing: -0.02em; }
+.s-row p { margin: 0; font-size: 1.12rem; color: var(--ink); max-width: 60ch; }
+@media (max-width: 900px) {
+  .split, .photo-pair { grid-template-columns: 1fr; gap: 2rem; }
+  .s-row { grid-template-columns: 1fr; gap: 0.6rem; }
+  .chev { width: 52px; height: 52px; }
+}
+.fig-grid.gallery { gap: 2.5rem 2rem; }
+
+/* ---------- aims: title + summary on the left, targets on the right ---------- */
+.aims { border-top: 1.5px solid var(--ink); }
+.aim { display: grid; grid-template-columns: 1fr 1.2fr; gap: 3rem; padding: 2.2rem 0; border-bottom: 1.5px solid var(--ink); align-items: start; }
+.aim h3 { margin: 0 0 0.5rem; font-family: var(--serif); font-weight: 500; font-size: clamp(1.8rem, 2.8vw, 2.6rem); line-height: 1.1; color: var(--ink); }
+.aim p { margin: 0; font-size: 1.08rem; color: var(--ink); max-width: 44ch; }
+.aim ul { list-style: none; margin: 0; padding: 0; }
+.aim li { position: relative; padding: 0.55rem 0 0.55rem 1.6rem; font-size: 1.05rem; color: var(--ink); border-bottom: 1px solid rgba(28, 42, 57, 0.18); }
+.aim li:last-child { border-bottom: 0; }
+.aim li::before { content: ""; position: absolute; left: 0; top: 1.15rem; width: 0.7rem; height: 1.5px; background: var(--ink); }
+@media (max-width: 900px) { .aim { grid-template-columns: 1fr; gap: 1rem; } }
+.band .pipeline .stage { background: rgba(255, 255, 255, 0.7); }
+@media (max-width: 900px) { .aim { grid-template-columns: 1fr; gap: 1rem; } }
+
+/* ---------- references list ---------- */
+.refs-list { list-style: none; margin: 0; padding: 0; border-top: 1.5px solid var(--ink); }
+.ref { display: grid; grid-template-columns: 5rem 1fr auto; gap: 2rem; align-items: center; padding: 1.8rem 0; border-bottom: 1.5px solid var(--ink); transition: background 0.6s; }
+.ref.hl { background: var(--sky); }
+.ref-n { font-family: var(--serif); font-weight: 500; font-size: 2.2rem; color: var(--ink); line-height: 1; }
+.ref-title { margin: 0 0 0.45rem; font-family: var(--serif); font-weight: 500; font-size: clamp(1.3rem, 1.9vw, 1.75rem); line-height: 1.2; color: var(--ink); }
+.ref-meta { margin: 0; font-family: var(--mono); font-size: 0.85rem; letter-spacing: 0.02em; line-height: 1.6; color: var(--muted); overflow-wrap: anywhere; }
+.ref-meta a { color: var(--muted); }
+.ref-link { display: inline-flex; align-items: center; gap: 0.8rem; text-decoration: none; color: var(--ink); font-family: var(--mono); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.ref-link svg { width: 52px; height: 52px; padding: 13px; border: 1.5px solid var(--ink); border-radius: 50%; fill: none; stroke: var(--ink); stroke-width: 1.5; transition: background 0.3s; box-sizing: border-box; }
+.ref-link:hover svg { background: var(--sky); }
+@media (max-width: 900px) { .ref { grid-template-columns: 3rem 1fr; } .ref-link { grid-column: 2; } .ref-link span { display: none; } }
+</style>
+</head>
+<body class="on-dark">
+<script>
+  function ph(img) { const d = document.createElement('div'); d.className = 'placeholder'; d.textContent = img.dataset.ph || img.alt; img.replaceWith(d); }
+</script>
+
+<a class="logo" href="#/home" aria-label="Home">
+  <svg class="line" viewBox="0 0 836 544" aria-hidden="true">
+    <rect x="24" y="22" width="788" height="500" rx="40"/>
+    <rect x="292" y="204" width="120" height="112" rx="8"/>
+    <rect x="494" y="224" width="56" height="80" rx="6"/>
+    <rect x="474" y="32" width="296" height="40" rx="6"/>
+    <line class="dotrow" x1="486" y1="52" x2="760" y2="52"/>
+    <rect x="36" y="186" width="130" height="96" rx="8"/>
+    <rect x="242" y="24" width="80" height="80" rx="6"/>
+    <rect x="740" y="236" width="76" height="90" rx="6"/>
+    <rect x="740" y="366" width="76" height="90" rx="6"/>
+    <rect x="486" y="404" width="232" height="24" rx="6"/>
+    <circle cx="72" cy="45" r="14"/><circle cx="795" cy="45" r="14"/><circle cx="72" cy="490" r="14"/><circle cx="793" cy="486" r="14"/>
+  </svg>
+  <svg class="color" viewBox="0 0 836 544" aria-hidden="true"></svg>
+</a>
+<button class="menu" aria-label="Open menu" aria-expanded="false" aria-controls="drawer"><svg viewBox="0 0 36 26" aria-hidden="true"><path/><path/><path/></svg></button>
+
+<div class="scrim"></div>
+<nav class="drawer" id="drawer" aria-label="Pages">
+  <ul>
+    <li class="has-sub"><a href="#/home" data-page="home" style="--hl:#CFE6F8">Home</a><ul class="sub"><li><a href="#/home?s=scope">Project Scope</a></li><li><a href="#/home?s=justification">Justification</a></li><li><a href="#/home?s=description">Project Description</a></li><li><a href="#/home?s=aims">Aims</a></li><li><a href="#/home?s=video">Interim Video Update</a></li></ul></li>
+    <li><a href="#/design" data-page="design" style="--hl:#CFE6F8">Design</a></li>
+    <li><a href="#/results" data-page="results" style="--hl:#CFE6F8">Results</a></li>
+    <li><a href="#/gallery" data-page="gallery" style="--hl:#CFE6F8">Gallery</a></li>
+    <li><a href="#/timeline" data-page="timeline" style="--hl:#CFE6F8">Timeline</a></li>
+    <li><a href="#/team" data-page="team" style="--hl:#CFE6F8">Team</a></li>
+    <li><a href="#/references" data-page="references" style="--hl:#CFE6F8">References</a></li>
+  </ul>
+  <a class="pill light gh" href="https://github.com/emilyseligson/senior-capstone" target="_blank" rel="noopener">Code on GitHub &#8599;</a>
+</nav>
+
+<main>
+  <article class="page" data-page="home" data-title="Home">
+    <section class="hero">
+      <canvas id="signals" aria-hidden="true"></canvas>
+      <h1>PYNQ-Z2-Based Electrical Impedance Spectroscopy for Skin Tissue Characterization</h1>
+    </section>
+
+    <section class="band sky" id="scope">
+      
+      <div class="band-grid">
+        <h2 class="big">Scope</h2>
+        <div>
+          <p class="tag">Project Scope</p>
+          <p class="lead">We are building a system that sends a current through the skin and extracts the response at several frequencies. The result is an impedance spectrum and it gives information about the structure of the tissue underneath.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="band peach" id="justification">
+      
+      <div class="band-grid">
+        <h2 class="big">Why</h2>
+        <div>
+          <p class="tag">Justification</p>
+          <div class="prose">
+        <p>Currently, suspicious lesions are commonly evaluated through excision biopsy, which provides tissue for histological diagnosis <a class="cite" href="#/references?r=1" aria-label="Reference 1">[1]</a>. However, these procedures are invasive and can require extensive planning and post-procedure wound care to reduce risks such as bleeding and infection <a class="cite" href="#/references?r=2" aria-label="Reference 2">[2]</a>.</p>
+        <p>EIS provides a noninvasive method for quantitatively evaluating tissue electrical properties and could provide additional information when evaluating potentially abnormal lesions. This is particularly significant for melanoma because when detected early, the five-year survival rate is more than 99% <a class="cite" href="#/references?r=3" aria-label="Reference 3">[3]</a>. Also, existing systems are not commercially available and are very expensive <a class="cite" href="#/references?r=4" aria-label="Reference 4">[4]</a>.</p>
+        <p>Our goal is to build an accessible, low-cost hardware that makes reliable quantitative skin measurements. Our prototype is not a diagnostic tool but rather a proof of concept and a foundation for future work on affordable tissue assessment.</p>
+      </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band cream" id="description">
+      
+      <div class="band-grid">
+        <h2 class="big">System</h2>
+        <div>
+          <p class="tag">Project Description</p>
+          <div class="prose">
+        <p>Our system uses the FPGA on a PYNQ-Z2 board to generate sine waves at 20 or more frequencies between 1 kHz and 100 kHz. A 12-bit DAC turns each wave into a small AC signal, and a front-end circuit limits the current before it reaches the skin. Four electrodes are placed on the skin: the outer two inject the current and the inner two measure the resulting voltage.</p>
+        <p>The response is digitized and captured by the FPGA. The ARM processor on the same chip fits each signal to a sine and cosine to find how large it is and how far it is shifted in time, turns those numbers into a complex impedance at each frequency, corrects for circuit effects, and fits the Cole-Cole tissue model. The resulting spectrum and four fitted parameters are plotted in a Jupyter notebook on the board after every sweep.</p>
+      </div>
+        </div>
+      </div>
+      <div class="wide">
+        <div class="pipeline" role="list" aria-label="Signal path">
+          <div class="stage" role="listitem"><b>FPGA</b>Generates a digital sine wave</div>
+          <div class="arrow" aria-hidden="true">&rsaquo;</div>
+          <div class="stage" role="listitem"><b>DAC</b>Converts samples into an AC voltage</div>
+          <div class="arrow" aria-hidden="true">&rsaquo;</div>
+          <div class="stage" role="listitem"><b>Front end</b>Limits current and blocks DC</div>
+          <div class="arrow" aria-hidden="true">&rsaquo;</div>
+          <div class="stage" role="listitem"><b>Skin</b>Four electrodes inject and sense</div>
+          <div class="arrow" aria-hidden="true">&rsaquo;</div>
+          <div class="stage" role="listitem"><b>ADC</b>Converts back to digital</div>
+          <div class="arrow" aria-hidden="true">&rsaquo;</div>
+          <div class="stage" role="listitem"><b>FPGA</b>Captures the samples</div>
+          <div class="arrow" aria-hidden="true">&rsaquo;</div>
+          <div class="stage" role="listitem"><b>ARM + Jupyter</b>Computes impedance, fits the model, plots it</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band sky" id="aims">
+      
+      <div class="band-grid">
+        <h2 class="big">Aims</h2>
+        <div>
+          <p class="tag">Aims</p>
+          <p class="lead">Measurable targets for our finished system</p>
+        </div>
+      </div>
+      <div class="wide">
+        <div class="aims">
+          <div class="aim">
+            <div><h3>Signal generation</h3><p>The FPGA sends sine waves to the test sample and receives the response from the electrodes.</p></div>
+            <ul><li>At least 20 frequencies from 1 kHz to 100 kHz</li><li>Each within 1% of its setpoint</li></ul>
+          </div>
+          <div class="aim">
+            <div><h3>Impedance analysis</h3><p>The ARM computes impedance, fits Cole-Cole parameters, and plots the results.</p></div>
+            <ul><li>Magnitude within 5% and phase within 3&deg; of a reference instrument, on precision resistors and an RC tissue phantom</li><li>Fitted phantom Cole-Cole parameters within 10% of the values predicted from its components</li></ul>
+          </div>
+          <div class="aim">
+            <div><h3>Skin measurements</h3><p>The full system measures skin across the sweep and compares the result to published data.</p></div>
+            <ul><li>Repeated measurements at the same site agree within a 10% coefficient of variation</li><li>The spectrum shows the frequency dependence reported in the literature</li><li>A full sweep and display update take at most 60 seconds</li></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band peach" id="video">
+      <div class="band-grid">
+        <h2 class="big">Update</h2>
+        <div>
+          <p class="tag">Interim Video Update</p>
+          <p class="lead">Where our project stood at the midpoint</p>
+        </div>
+      </div>
+      <div class="wide">
+        <div class="video-pair">
+        <figure>
+          <div class="video-frame">
+            <iframe src="https://drive.google.com/file/d/1hDvcW6BRDexXl4bwV7yp5wjKhIDCKlKo/preview"
+              title="Full interim video update" allow="autoplay; fullscreen" allowfullscreen loading="lazy"></iframe>
+          </div>
+          <figcaption><b>Full interim update</b> &middot; <a href="https://drive.google.com/file/d/1hDvcW6BRDexXl4bwV7yp5wjKhIDCKlKo/view?usp=sharing" target="_blank" rel="noopener">Open in Google Drive &#8599;</a></figcaption>
+        </figure>
+        <figure>
+          <div class="video-frame">
+            <iframe src="https://drive.google.com/file/d/1-Ab6vnzBT8ohUhOKshS1TeRsffRf0fDj/preview"
+              title="Demo video" allow="autoplay; fullscreen" allowfullscreen loading="lazy"></iframe>
+          </div>
+          <figcaption><b>Demo</b> &middot; <a href="https://drive.google.com/file/d/1-Ab6vnzBT8ohUhOKshS1TeRsffRf0fDj/view?usp=share_link" target="_blank" rel="noopener">Open in Google Drive &#8599;</a></figcaption>
+        </figure>
+      </div>
+      </div>
+    </section>
+  </article>
+
+
+  <article class="page" data-page="design" data-title="Design">
+    <header class="page-head band peach">
+      
+      <h1 class="big">Design</h1>
+      <p class="intro">The whole system laid out: the hardware that touches the skin, the software that turns signals into numbers, and the limits that keep it safe.</p>
+    </header>
+
+    <section class="block split">
+      <div>
+        <h2>Hardware</h2>
+        <figure class="plain-fig">
+          <img src="images/schematic.png" alt="KiCad schematic of the full EIS front end: excitation and measurement, 1.65 V reference, ADC protection, and power" data-ph="Add: KiCad schematic" onerror="ph(this)">
+          <figcaption>Full front-end schematic in KiCad: excitation and measurement, 1.65 V reference, ADC protection, and power.</figcaption>
+        </figure>
+      </div>
+      <div class="acc">
+        <div class="acc-row">
+          <button class="acc-head" aria-expanded="false">
+            <span><span class="acc-name">PYNQ-Z2</span><span class="acc-tag">Zynq-7020 &middot; FPGA + ARM</span></span>
+            <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+          </button>
+          <div class="acc-body"><div><p>The board at the center of the system. Its Zynq chip combines programmable logic (the FPGA), which generates and captures the signals, with a dual-core ARM processor that runs Python and Jupyter.</p></div></div>
+        </div>
+        <div class="acc-row">
+          <button class="acc-head" aria-expanded="false">
+            <span><span class="acc-name">Pmod DA2</span><span class="acc-tag">12-bit DAC</span></span>
+            <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+          </button>
+          <div class="acc-body"><div><p>Turns the FPGA&rsquo;s digital sine samples into a 2 Vpp analog wave that drives the front end.</p></div></div>
+        </div>
+        <div class="acc-row">
+          <button class="acc-head" aria-expanded="false">
+            <span><span class="acc-name">Pmod AD1</span><span class="acc-tag">12-bit, 1 MSPS ADC</span></span>
+            <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+          </button>
+          <div class="acc-body"><div><p>Samples both measurement channels at the same time and sends them back to the FPGA.</p></div></div>
+        </div>
+        <div class="acc-row">
+          <button class="acc-head" aria-expanded="false">
+            <span><span class="acc-name">INA128 &times; 2</span><span class="acc-tag">Instrumentation amplifiers &middot; gain &asymp; 9.9</span></span>
+            <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+          </button>
+          <div class="acc-body"><div><p>One measures the voltage across the inner sense electrodes; the other measures the current through a 1 k&Omega; reference resistor.</p></div></div>
+        </div>
+        <div class="acc-row">
+          <button class="acc-head" aria-expanded="false">
+            <span><span class="acc-name">OPA2134</span><span class="acc-tag">1.65 V reference buffer</span></span>
+            <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+          </button>
+          <div class="acc-body"><div><p>Holds both amplifier outputs at the middle of the ADC&rsquo;s 0&ndash;3.3 V range so the whole sine wave can be measured.</p></div></div>
+        </div>
+        <div class="acc-row">
+          <button class="acc-head" aria-expanded="false">
+            <span><span class="acc-name">BAT85 diodes</span><span class="acc-tag">ADC input protection</span></span>
+            <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+          </button>
+          <div class="acc-body"><div><p>Clamp the ADC inputs between 0 and 3.3 V so a fault can&rsquo;t damage the Pmod or the board.</p></div></div>
+        </div>
+        <div class="acc-row">
+          <button class="acc-head" aria-expanded="false">
+            <span><span class="acc-name">Two 9 V batteries</span><span class="acc-tag">Isolated &plusmn;9 V supply</span></span>
+            <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+          </button>
+          <div class="acc-body"><div><p>Power the analog front end without any connection to wall power.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="photo-pair">
+        <figure class="plain-fig"><img src="images/g2_mock_skin_load_test.jpg" alt="PYNQ-Z2 with Pmods, breadboard front end, and two 9 V batteries" loading="lazy" onerror="ph(this)"><figcaption>The PYNQ-Z2 with both Pmods, the breadboarded front end, and the &plusmn;9 V batteries.</figcaption></figure>
+        <figure class="plain-fig"><img src="images/g1_first_skin_test.jpg" alt="Four electrodes on a forearm" loading="lazy" onerror="ph(this)"><figcaption>Four electrodes on the forearm: the outer pair injects current, the inner pair senses voltage.</figcaption></figure>
+      </div>
+    </section>
+
+    <section class="block split">
+      <div>
+        <h2>Software</h2>
+        <p class="side-lead">The FPGA handles the fast, timing-critical signal work. The ARM processor on the same chip does the math and the plotting.</p>
+      </div>
+      <div class="acc">
+        <div class="acc-row">
+          <button class="acc-head" aria-expanded="false">
+            <span><span class="acc-name">FPGA logic</span><span class="acc-tag">Programmable logic &middot; Verilog</span></span>
+            <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+          </button>
+          <div class="acc-body"><div><p>A DDS sine generator sets each sweep frequency and streams samples to the Pmod DA2 over SPI. On the way back, it reads the Pmod AD1 and captures both channels.</p></div></div>
+        </div>
+        <div class="acc-row">
+          <button class="acc-head" aria-expanded="false">
+            <span><span class="acc-name">ARM processing</span><span class="acc-tag">Processing system &middot; Python</span></span>
+            <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+          </button>
+          <div class="acc-body"><div><p>Fits each captured channel to a sine and cosine at the excitation frequency to get its in-phase and quadrature parts, computes the complex impedance, corrects it with a sweep on a known resistor, and fits the Cole-Cole model to the full spectrum.</p></div></div>
+        </div>
+        <div class="acc-row">
+          <button class="acc-head" aria-expanded="false">
+            <span><span class="acc-name">Jupyter dashboard</span><span class="acc-tag">Python &middot; matplotlib</span></span>
+            <span class="chev" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span>
+          </button>
+          <div class="acc-body"><div><p>Runs in a notebook on the board. After each sweep it shows the waveforms, the impedance spectrum, and the Cole-Cole fit, and saves the results so measurements can be compared later.</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <h2>Safety</h2>
+      <div class="safety">
+        <div class="s-row"><strong>64 &micro;A</strong><p>Worst-case excitation current (rms), with the electrodes shorted. This is below the IEC 60601-1 patient auxiliary current limit of 100 &micro;A.</p></div>
+        <div class="s-row"><strong>100 &Omega;</strong><p>Every frequency is checked on a 100 &Omega; test load with an oscilloscope before any skin contact.</p></div>
+        <div class="s-row"><strong>&plusmn;9 V</strong><p>The front end runs on two batteries, with no connection to wall power.</p></div>
+        <div class="s-row"><strong>Us only</strong><p>We test only on ourselves as healthy volunteers. The device is a prototype, not a certified medical device.</p></div>
+      </div>
+    </section>
+  </article>
+
+  <article class="page" data-page="results" data-title="Results">
+    <header class="page-head band sky">
+      
+      <h1 class="big">Results</h1>
+      <p class="intro">How the finished system performed against each aim. Results will be added as testing is completed.</p>
+    </header>
+    <section class="block">
+      <div class="table-wrap">
+        <table class="specs">
+          <thead><tr><th>Aim</th><th>Target</th><th>Measured</th></tr></thead>
+          <tr><th>Signal generation</th><td>&ge; 20 frequencies, 1&ndash;100 kHz, within 1%</td><td>&mdash;</td></tr>
+          <tr><th>Magnitude accuracy</th><td>Within 5% of reference</td><td>&mdash;</td></tr>
+          <tr><th>Phase accuracy</th><td>Within 3&deg; of reference</td><td>&mdash;</td></tr>
+          <tr><th>Repeatability</th><td>Coefficient of variation &le; 10%</td><td>&mdash;</td></tr>
+          <tr><th>Speed</th><td>Sweep + display &le; 60 s</td><td>&mdash;</td></tr>
+        </table>
+      </div>
+    </section>
+    <section class="block">
+      <h2>Validation on known loads</h2>
+      <div class="fig-grid">
+        <figure class="plain-fig"><img src="images/resistor-validation.png" alt="Measured vs reference impedance on precision resistors" data-ph="Add: measured vs. reference |Z| and phase on precision resistors" onerror="ph(this)"><figcaption>Magnitude and phase error across the sweep on precision resistors.</figcaption></figure>
+        <figure class="plain-fig"><img src="images/phantom-fit.png" alt="Cole-Cole fit on the RC tissue phantom" data-ph="Add: Cole-Cole fit on the RC tissue phantom" onerror="ph(this)"><figcaption>Fitted vs. predicted Cole-Cole parameters for the RC phantom.</figcaption></figure>
+      </div>
+    </section>
+    <section class="block">
+      <h2>Measurements on skin</h2>
+      <div class="two-col">
+        <figure class="plain-fig"><img src="images/skin-spectrum.png" alt="Measured skin impedance spectrum" data-ph="Add: measured skin spectrum with Cole-Cole fit" onerror="ph(this)"><figcaption>Impedance spectrum measured on the forearm, with the fitted Cole-Cole curve.</figcaption></figure>
+        <div class="panel">
+          <h3>Fitted parameters</h3>
+          <ul class="parts">
+            <li>R<sub>0</sub> (low-frequency resistance): &mdash;</li>
+            <li>R<sub>&infin;</sub> (high-frequency resistance): &mdash;</li>
+            <li>Characteristic frequency: &mdash;</li>
+            <li>&alpha; (spread factor): &mdash;</li>
+          </ul>
+        </div>
+      </div>
+      <figure class="plain-fig" style="margin-top:1.5rem"><img src="images/dashboard.png" alt="Screenshot of the Jupyter dashboard" data-ph="Add: screenshot of the Jupyter dashboard after a sweep" onerror="ph(this)"><figcaption>The dashboard after a sweep.</figcaption></figure>
+    </section>
+  </article>
+
+  <article class="page" data-page="gallery" data-title="Gallery">
+    <header class="page-head band peach">
+      
+      <h1 class="big">Gallery</h1>
+      <p class="intro"></p>
+    </header>    <section class="block">
+      <div class="fig-grid gallery">
+        <figure class="plain-fig"><img src="images/g1_first_skin_test.jpg" alt="Four electrodes on a forearm connected to the PYNQ-Z2 and breadboard" loading="lazy" onerror="ph(this)"><figcaption>First test on skin</figcaption></figure>
+        <figure class="plain-fig"><img src="images/g2_mock_skin_load_test.jpg" alt="PYNQ-Z2 with Pmods, breadboard front end, and two 9 V batteries" loading="lazy" onerror="ph(this)"><figcaption>Mock skin load test</figcaption></figure>
+        <figure class="plain-fig"><img src="images/g3_circuit_mock_load_dac.jpg" alt="Close-up of the breadboard circuit with the mock skin load and Pmod DA2" loading="lazy" onerror="ph(this)"><figcaption>Close-up of our circuit with the mock skin load and the DAC connected</figcaption></figure>
+        <figure class="plain-fig"><img src="images/g4_passive_circuit_test.jpg" alt="Small passive breadboard circuit with function generator and oscilloscope probes" loading="lazy" onerror="ph(this)"><figcaption>Our first test with the passive circuit, using the function generator and the oscilloscope</figcaption></figure>
+      </div>
+    </section>
+  </article>
+
+  <article class="page" data-page="timeline" data-title="Timeline">
+    <header class="page-head band sky">
+      
+      <h1 class="big">Timeline</h1>
+      <p class="intro">Our GitHub project roadmap, beginning from our proposal and ending at the final demo</p>
+    </header>
+    <section class="block">
+      <div class="tl-summary">
+        <div class="tl-stat"><strong id="tl-done">0</strong><span>of <b id="tl-total">0</b> tasks closed</span></div>
+        <div class="tl-bar-wrap">
+          <div class="tl-progress"><span id="tl-fill"></span></div>
+          <p class="tl-legend">
+            <span><i class="lg done"></i>Closed</span>
+            <span><i class="lg open"></i>Open</span>
+            <span><i class="lg today"></i>Today</span>
+          </p>
+        </div>
+      </div>
+      <div class="roadmap-scroll"><div class="roadmap" id="roadmap"></div></div>
+      <div class="tl-next">
+        <a class="pill" href="https://github.com/users/emilyseligson/projects/2/views/1?layout=roadmap" target="_blank" rel="noopener">Full roadmap on GitHub &#8599;</a>
+      </div>
+    </section>
+
+  </article>
+
+  <article class="page" data-page="team" data-title="Team">
+    <section class="team-wrap">
+      <div class="team-intro">
+        <h1 class="big team-word">Team</h1>
+        <ul class="team-filter">
+          <li><a href="#/team" data-jump="advisor" class="on">Advisor</a></li>
+          <li><a href="#/team" data-jump="students">Students</a></li>
+        </ul>
+      </div>
+      <div class="people">
+        <div class="person-row" id="advisor">
+          <button class="person-head" aria-expanded="false">
+            <span><span class="pname">Prof. Michael Hall</span><span class="prole">Advisor and client</span></span>
+            <span class="plus" aria-hidden="true"></span>
+          </button>
+          <div class="person-body"><div>
+            <p>Professor of Computer Science &amp; Engineering and Electrical &amp; Systems Engineering. Guides FPGA development and system integration on the PYNQ-Z2.</p>
+            <p><a href="mailto:mhall24@wustl.edu">mhall24@wustl.edu</a></p>
+          </div></div>
+        </div>
+        <div class="person-row" id="students">
+          <button class="person-head" aria-expanded="false">
+            <span><span class="pname">Ines Nix</span><span class="prole">B.S. Computer Engineering, December 2026</span></span>
+            <span class="plus" aria-hidden="true"></span>
+          </button>
+          <div class="person-body"><div>
+            <p>Builds the analog circuit, Cole-Cole analysis, and the Jupyter dashboard. Background in embedded systems and computational biology research.</p>
+            <p><a href="mailto:i.n.nix@wustl.edu">i.n.nix@wustl.edu</a></p>
+          </div></div>
+        </div>
+        <div class="person-row">
+          <button class="person-head" aria-expanded="false">
+            <span><span class="pname">Emily Seligson</span><span class="prole">B.S. Computer Engineering, December 2026</span></span>
+            <span class="plus" aria-hidden="true"></span>
+          </button>
+          <div class="person-body"><div>
+            <p>Leads FPGA programming, ARM processing, and project planning. Interested in embedded systems, microcontrollers, and assistive biotechnology.</p>
+            <p><a href="mailto:e.d.seligson@wustl.edu">e.d.seligson@wustl.edu</a></p>
+          </div></div>
+        </div>
+      </div>
+    </section>
+  </article>
+
+  <article class="page" data-page="references" data-title="References">
+    <header class="page-head band sky">
+      
+      <h1 class="big">References</h1>
+    </header>
+    <section class="block">
+      <ol class="refs-list">
+        <li class="ref" id="ref1">
+          <span class="ref-n">[1]</span>
+          <div class="ref-main">
+            <p class="ref-title">Excision versus incision biopsy in the management of malignant melanoma</p>
+            <p class="ref-meta">K. S. Sharma, P. Lim, and M. T. Brotherston &middot; <i>The Journal of Dermatological Treatment</i>, vol. 27, no. 1, pp. 88&ndash;90, 2016, doi: <a href="https://doi.org/10.3109/09546634.2015.1034083" target="_blank" rel="noopener">10.3109/09546634.2015.1034083</a>.</p>
+          </div>
+          <a class="ref-link" href="https://doi.org/10.3109/09546634.2015.1034083" target="_blank" rel="noopener" aria-label="Open source"><span>doi.org</span><svg viewBox="0 0 24 24"><path d="M6 18 18 6M8 6h10v10"/></svg></a>
+        </li>
+        <li class="ref" id="ref2">
+          <span class="ref-n">[2]</span>
+          <div class="ref-main">
+            <p class="ref-title">Excisional Biopsy</p>
+            <p class="ref-meta">C. Beard and G. J. Schmieder &middot; <i>NIH.gov</i>, Nov. 23, 2018. <a href="https://www.ncbi.nlm.nih.gov/books/NBK534835/" target="_blank" rel="noopener">https://www.ncbi.nlm.nih.gov/books/NBK534835/</a> (accessed Sept. 15, 2026).</p>
+          </div>
+          <a class="ref-link" href="https://www.ncbi.nlm.nih.gov/books/NBK534835/" target="_blank" rel="noopener" aria-label="Open source"><span>ncbi.nlm.nih.gov</span><svg viewBox="0 0 24 24"><path d="M6 18 18 6M8 6h10v10"/></svg></a>
+        </li>
+        <li class="ref" id="ref3">
+          <span class="ref-n">[3]</span>
+          <div class="ref-main">
+            <p class="ref-title">Melanoma Cancer</p>
+            <p class="ref-meta"><i>Cancer Research Institute</i>, Apr. 29, 2025. <a href="https://www.cancerresearch.org/immunotherapy-by-cancer-type/melanoma-cancer" target="_blank" rel="noopener">https://www.cancerresearch.org/immunotherapy-by-cancer-type/melanoma-cancer</a> (accessed Sept. 15, 2026).</p>
+          </div>
+          <a class="ref-link" href="https://www.cancerresearch.org/immunotherapy-by-cancer-type/melanoma-cancer" target="_blank" rel="noopener" aria-label="Open source"><span>cancerresearch.org</span><svg viewBox="0 0 24 24"><path d="M6 18 18 6M8 6h10v10"/></svg></a>
+        </li>
+        <li class="ref" id="ref4">
+          <span class="ref-n">[4]</span>
+          <div class="ref-main">
+            <p class="ref-title">The role of technology in melanoma screening and diagnosis</p>
+            <p class="ref-meta">A. T. Young <i>et al.</i> &middot; <i>Pigment Cell &amp; Melanoma Research</i>, vol. 34, no. 2, pp. 288&ndash;300, Aug. 2020, doi: <a href="https://doi.org/10.1111/pcmr.12907" target="_blank" rel="noopener">10.1111/pcmr.12907</a>.</p>
+          </div>
+          <a class="ref-link" href="https://doi.org/10.1111/pcmr.12907" target="_blank" rel="noopener" aria-label="Open source"><span>doi.org</span><svg viewBox="0 0 24 24"><path d="M6 18 18 6M8 6h10v10"/></svg></a>
+        </li>
+      </ol>
+    </section>
+  </article>
+
+</main>
+
+<footer>
+  <div class="foot-info">
+    <div class="foot-lead">
+      <a class="arrow-pill" href="https://github.com/emilyseligson/senior-capstone" target="_blank" rel="noopener"><span>Code on GitHub</span><span class="circ" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 18 18 6M8 6h10v10"/></svg></span></a>
+    </div>
+    <div class="foot-col">
+      <h3>Contact</h3>
+      <p><b>Ines Nix</b><br><a href="mailto:i.n.nix@wustl.edu">i.n.nix@wustl.edu</a></p>
+      <p><b>Emily Seligson</b><br><a href="mailto:e.d.seligson@wustl.edu">e.d.seligson@wustl.edu</a></p>
+    </div>
+    <div class="foot-col">
+      <h3>Advisor</h3>
+      <p><b>Prof. Michael Hall</b><br><a href="mailto:mhall24@wustl.edu">mhall24@wustl.edu</a></p>
+      <h3 style="margin-top:2rem">Course</h3>
+      <p>ESE 4970 Capstone Design<br><i>The Preston M. Green Department of Electrical &amp; Systems Engineering</i><br>Washington University in St. Louis</p>
+    </div>
+  </div>
+  <div class="tiles">
+    <a class="tile " style="--hl:#CFE6F8" href="#/design">Design</a>
+    <a class="tile pillish" style="--hl:#CFE6F8" href="#/results">Results</a>
+    <a class="tile " style="--hl:#CFE6F8" href="#/gallery">Gallery</a>
+  </div>
+  <div class="tiles r2">
+    <a class="tile pillish" style="--hl:#CFE6F8" href="#/timeline">Timeline</a>
+    <a class="tile " style="--hl:#CFE6F8" href="#/team">Team</a>
+    <a class="tile pillish" style="--hl:#CFE6F8" href="#/references">References</a>
+  </div>
+</footer>
+<a class="to-top" href="#top" aria-label="Back to top">&uarr;</a>
+
+<script>
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* ---------- hero: live biosignal traces ----------
+     Horizontal traces scroll like a patient monitor. Most are frequency sweeps
+     (the wave gets faster left to right, like our 1-100 kHz sweep); two are ECG-style.
+     Moving the cursor near a trace raises its amplitude; clicking sends a pulse that
+     makes every trace spike as it passes. */
+  function createSignals(host, cv) {
+    const ctx = cv.getContext('2d');
+    let W = 0, H = 0, t = 0, running = false, traces = [];
+    const mouse = { x: -9999, y: -9999, tx: -9999, ty: -9999, a: 0, at: 0 };
+    const pulses = [];
+
+    function layout() {
+      const gap = Math.max(38, H / 18);
+      traces = [];
+      for (let y = gap * 0.6, i = 0; y < H; y += gap, i++) {
+        traces.push({ y, i, ecg: i === 3 || i === 9, f0: 0.004 + (i % 4) * 0.0015, sp: 0.6 + (i % 5) * 0.12, amp: gap * 0.22, ph: i * 1.7 });
+      }
+    }
+
+    // ECG-like beat shape, u in [0,1)
+    function beat(u) {
+      const g = (c, w, a) => a * Math.exp(-((u - c) * (u - c)) / (2 * w * w));
+      return g(0.18, 0.025, 0.18) - g(0.36, 0.008, 0.25) + g(0.4, 0.01, 1.6) - g(0.44, 0.01, 0.45) + g(0.66, 0.04, 0.35);
+    }
+
+    function frame() {
+      t += 1;
+      mouse.x += (mouse.tx - mouse.x) * 0.08; mouse.y += (mouse.ty - mouse.y) * 0.08;
+      mouse.a += (mouse.at - mouse.a) * 0.08;
+      for (let k = pulses.length - 1; k >= 0; k--) { const p = pulses[k]; p.r += 2; p.life *= 0.993; if (p.life < 0.03) pulses.splice(k, 1); }
+
+      ctx.clearRect(0, 0, W, H);
+      // faint monitor grid
+      ctx.globalAlpha = 0.06; ctx.strokeStyle = '#9DB4CE'; ctx.lineWidth = 1; ctx.beginPath();
+      for (let x = 0; x < W; x += 48) { ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); }
+      for (let y = 0; y < H; y += 48) { ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); }
+      ctx.stroke();
+
+      const step = 3;
+      for (const tr of traces) {
+        ctx.beginPath();
+        for (let x = 0; x <= W; x += step) {
+          // cursor proximity boost
+          const dx = x - mouse.x, dy = tr.y - mouse.y;
+          let boost = 1 + 2.2 * mouse.a * Math.exp(-(dx * dx + dy * dy) / 26000);
+          // click pulses
+          let spike = 0;
+          for (const p of pulses) {
+            const d = Math.hypot(x - p.x, tr.y - p.y) - p.r;
+            spike += p.life * Math.exp(-(d * d) / 260);
+          }
+          let y;
+          if (tr.ecg) {
+            const period = 260, u = (((x + t * 0.15 * tr.sp + tr.ph * 40) % period) + period) % period / period;
+            y = tr.y - tr.amp * 1.3 * beat(u) * boost;
+          } else {
+            const phase = 2 * Math.PI * (tr.f0 * x + tr.f0 * 3 * x * x / W) - t * 0.0022 * tr.sp + tr.ph;
+            y = tr.y + tr.amp * Math.sin(phase) * boost * (0.55 + 0.45 * Math.sin(t * 0.0004 + tr.i));
+          }
+          y -= spike * tr.amp * 2.4 * Math.sin(x * 0.09 + t * 0.02);
+          x ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+        }
+        ctx.lineWidth = tr.ecg ? 1.6 : 1.3;
+        ctx.strokeStyle = '#9DB4CE';                       // one muted blue for every trace
+        ctx.globalAlpha = tr.ecg ? 0.6 : (tr.i % 3 === 0 ? 0.5 : 0.32);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      if (running) requestAnimationFrame(frame);
+    }
+
+    function resize() {
+      const d = Math.min(window.devicePixelRatio || 1, 2);
+      W = host.clientWidth; H = host.clientHeight;
+      cv.width = W * d; cv.height = H * d; ctx.setTransform(d, 0, 0, d, 0, 0);
+      layout();
+      if (!running) frame();
+    }
+    return {
+      resize,
+      start() { if (!running && !reduceMotion) { running = true; requestAnimationFrame(frame); } },
+      stop() { running = false; },
+      pointer(x, y) { mouse.tx = x; mouse.ty = y; if (mouse.at === 0) { mouse.x = x; mouse.y = y; } mouse.at = 1; },
+      leave() { mouse.at = 0; },
+      pulse(x, y) { pulses.push({ x, y, r: 0, life: 1 }); if (pulses.length > 6) pulses.shift(); }
+    };
+  }
+
+  /* ---------- hero signals ---------- */
+  const hero = document.querySelector('.hero');
+  const sig = createSignals(hero, document.getElementById('signals'));
+  hero.addEventListener('pointermove', e => { const r = hero.getBoundingClientRect(); sig.pointer(e.clientX - r.left, e.clientY - r.top); });
+  hero.addEventListener('pointerleave', () => sig.leave());
+  hero.addEventListener('click', e => { const r = hero.getBoundingClientRect(); sig.pulse(e.clientX - r.left, e.clientY - r.top); });
+  window.addEventListener('resize', sig.resize);
+
+  /* logo outline is light while the dark hero is behind it */
+  let heroInView = true;
+  const setDark = () => {
+    const home = document.querySelector('.page.current')?.dataset.page === 'home';
+    document.body.classList.toggle('on-dark', home && heroInView);
+  };
+  new IntersectionObserver(([en]) => { heroInView = en.intersectionRatio > 0.12; setDark(); }, { threshold: [0, 0.12, 0.5] }).observe(hero);
+
+  /* ---------- page router (#/page) ---------- */
+  const pages = [...document.querySelectorAll('.page')];
+  const order = pages.map(p => p.dataset.page);
+  function route() {
+    const raw = location.hash.replace(/^#\/?/, '');
+    const [name, query] = raw.split('?');
+    const id = order.includes(name) ? name : 'home';
+    pages.forEach(p => p.classList.toggle('current', p.dataset.page === id));
+    document.querySelectorAll('.drawer a[data-page]').forEach(a => a.classList.toggle('active', a.dataset.page === id));
+    const cur = pages.find(p => p.dataset.page === id);
+    document.title = (id === 'home' ? '' : cur.dataset.title + ' | ') + 'PYNQ-Z2-Based EIS for Skin Tissue | ESE 4970';
+    if (id === 'home') { sig.resize(); sig.start(); } else sig.stop();
+    const section = id === 'home' && query ? document.getElementById(new URLSearchParams(query).get('s')) : null;
+    if (section) setTimeout(() => section.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' }), 60);
+    else window.scrollTo({ top: 0, behavior: 'auto' });
+    heroInView = id === 'home' && !section;
+    setDark(); closeMenu(); revealIn(cur);
+    if (id === 'references' && query) {
+      const li = document.getElementById('ref' + new URLSearchParams(query).get('r'));
+      if (li) {
+        document.querySelectorAll('.ref').forEach(x => x.classList.remove('hl'));
+        li.classList.add('hl');
+        setTimeout(() => li.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' }), 200);
+      }
+    }
+  }
+  window.addEventListener('hashchange', route);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) sig.stop();
+    else if (document.querySelector('.page.current')?.dataset.page === 'home') sig.start();
+  });
+
+  /* ---------- back-to-top button ---------- */
+  const toTop = document.querySelector('.to-top');
+  toTop.addEventListener('click', e => { e.preventDefault(); window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); });
+  window.addEventListener('scroll', () => toTop.classList.toggle('show', window.scrollY > 700), { passive: true });
+
+  /* ---------- menu ---------- */
+  const menuBtn = document.querySelector('.menu');
+  function openMenu() { document.body.classList.add('menu-open'); menuBtn.setAttribute('aria-expanded', 'true'); }
+  function closeMenu() { document.body.classList.remove('menu-open'); menuBtn.setAttribute('aria-expanded', 'false'); }
+  menuBtn.addEventListener('click', () => document.body.classList.contains('menu-open') ? closeMenu() : openMenu());
+  document.querySelector('.scrim').addEventListener('click', closeMenu);
+  // a section shortcut clicked twice in a row doesn't change the hash, so route by hand
+  document.querySelectorAll('.drawer ul.sub a').forEach(a => a.addEventListener('click', e => {
+    if (location.hash === a.getAttribute('href')) { e.preventDefault(); route(); }
+  }));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
+
+  /* menu lines turn into sine waves on hover */
+  (() => {
+    const paths = [...menuBtn.querySelectorAll('path')];
+    let amp = 0, ampT = 0, phase = 0, raf = 0;
+    function draw() {
+      amp += (ampT - amp) * 0.15; phase += 0.2;
+      paths.forEach((p, j) => {
+        const y0 = 4 + j * 9; let d = '';
+        for (let k = 0; k <= 36; k++) d += (k ? 'L' : 'M') + k + ' ' + (y0 + 3 * amp * Math.sin((k / 36) * (1.5 + j * 0.5) * Math.PI * 2 - phase - j)).toFixed(2);
+        p.setAttribute('d', d);
+      });
+      raf = (Math.abs(ampT - amp) > 0.005 || amp > 0.01) ? requestAnimationFrame(draw) : 0;
+    }
+    const kick = () => { if (!raf) raf = requestAnimationFrame(draw); };
+    menuBtn.addEventListener('mouseenter', () => { ampT = 1; kick(); });
+    menuBtn.addEventListener('mouseleave', () => { ampT = 0; kick(); });
+    menuBtn.addEventListener('focus', () => { ampT = 1; kick(); });
+    menuBtn.addEventListener('blur', () => { ampT = 0; kick(); });
+    draw();
+  })();
+
+  /* ---------- logo: outline board -> real PYNQ-Z2 on hover ---------- */
+  (() => {
+    const logo = document.querySelector('.logo');
+    let s = '';
+    // drawn in the photo's own coordinates (836 x 544)
+    const RED = '#D9263B', SILK = '#F4F1EA', BLK = '#141414', MET = '#C9CDD2', METD = '#8F969E', GOLD = '#D4AF37';
+    const r = (x, y, w, h, f, extra = '') => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${f}" ${extra}/>`;
+    // PCB
+    s += r(20, 18, 796, 508, RED, 'rx="14"');
+    // gold mounting holes
+    [[72, 45], [795, 45], [72, 490], [793, 486]].forEach(([x, y]) => s += `<circle cx="${x}" cy="${y}" r="17" fill="${GOLD}"/><circle cx="${x}" cy="${y}" r="9" fill="#2B1A0E"/>`);
+    // top edge: audio jack, USB-A, HDMI
+    s += r(112, 22, 42, 92, BLK, 'rx="4"');
+    s += r(242, 24, 80, 80, MET, `rx="3" stroke="${METD}" stroke-width="3"`) + r(256, 38, 52, 26, '#E8EBEE');
+    s += r(350, 24, 88, 70, MET, `rx="3" stroke="${METD}" stroke-width="3"`) + r(364, 40, 60, 22, '#55595E', 'rx="4"');
+    // Raspberry Pi 2x20 header
+    s += r(474, 32, 296, 40, BLK, 'rx="3"');
+    for (let k = 0; k < 20; k++) for (let j = 0; j < 2; j++) s += r(482 + k * 14.5, 40 + j * 16, 7, 7, GOLD);
+    // left edge: line-in jack, Ethernet, micro USB, power switch, DC jack
+    s += r(18, 112, 88, 58, BLK, 'rx="5"');
+    s += r(36, 186, 130, 96, MET, `rx="4" stroke="${METD}" stroke-width="3"`);
+    for (let k = 0; k < 5; k++) s += r(46, 196 + k * 16, 110, 6, '#B3B9C0');
+    s += r(40, 304, 44, 34, MET, 'rx="5"');
+    s += r(54, 368, 70, 36, '#2E2E2E', 'rx="4"') + r(64, 376, 24, 20, MET);
+    s += r(48, 412, 76, 58, MET, `rx="4" stroke="${METD}" stroke-width="3"`);
+    // right edge: HDMI, JTAG, two Pmods (pins blink)
+    s += r(752, 88, 66, 84, MET, `rx="3" stroke="${METD}" stroke-width="3"`) + r(766, 104, 26, 52, '#55595E', 'rx="4"');
+    s += r(748, 184, 58, 44, BLK, 'rx="3"');
+    [236, 366].forEach(y => {
+      s += r(740, y, 76, 90, BLK, 'rx="4"');
+      for (let k = 0; k < 6; k++) for (let j = 0; j < 2; j++)
+        s += `<rect class="pin" x="${752 + j * 16}" y="${y + 10 + k * 13}" width="8" height="8" style="animation-delay:${(Math.random() * 0.9).toFixed(2)}s"/>`;
+    });
+    // Arduino / ChipKit headers
+    s += r(430, 120, 280, 26, BLK, 'rx="3"') + r(486, 404, 116, 24, BLK, 'rx="3"') + r(612, 404, 106, 24, BLK, 'rx="3"');
+    for (let k = 0; k < 18; k++) s += r(438 + k * 15.5, 129, 6, 6, GOLD);
+    for (let k = 0; k < 15; k++) s += r(494 + k * 15, 412, 6, 6, GOLD);
+    // Zynq with heatsink, DDR, other chips
+    s += `<text x="296" y="196" font-family="Arial, sans-serif" font-size="20" font-style="italic" font-weight="700" fill="${BLK}">Zynq 7020</text>`;
+    s += r(292, 204, 120, 112, BLK, 'rx="3"');
+    for (let k = 0; k < 13; k++) s += r(300 + k * 8.6, 210, 4, 100, '#2F2F2F');
+    s += r(494, 224, 56, 80, BLK, 'rx="2"');
+    s += r(160, 330, 56, 54, BLK, 'rx="2"') + r(372, 404, 46, 46, BLK, 'rx="2"') + r(156, 134, 30, 30, BLK);
+    // inductors
+    [[322, 384], [322, 428], [442, 368], [442, 406]].forEach(([x, y]) => s += r(x, y, 32, 30, '#3A3A3A', 'rx="6"'));
+    // slide switches + push buttons + LEDs
+    [228, 270].forEach(x => s += r(x, 436, 34, 70, BLK, 'rx="3"') + r(x + 9, 452, 16, 22, MET));
+    [338, 396, 560, 618, 676, 734].forEach(x => s += r(x - 16, 476, 32, 32, MET, 'rx="3"') + `<circle cx="${x}" cy="492" r="9" fill="${BLK}"/>`);
+    [560, 618, 676, 734].forEach((x, k) => s += `<rect class="led" x="${x - 8}" y="452" width="16" height="10" rx="2" fill="#4ADE80" style="animation-delay:${(k * 0.27).toFixed(2)}s"/>`);
+    // SD card slot
+    s += r(456, 506, 76, 20, '#2E2E2E');
+    // silkscreen
+    s += `<text x="580" y="196" font-family="Arial, sans-serif" font-size="30" fill="${BLK}">PYNQ-Z2</text>`;
+    s += `<text x="584" y="356" font-family="Arial, sans-serif" font-size="26" font-weight="700" fill="${BLK}">XILINX</text>`;
+    s += `<circle cx="608" cy="300" r="30" fill="#F7E64B"/>`;
+    s += `<text x="472" y="98" font-family="Arial, sans-serif" font-size="11" fill="${SILK}">RASPBERRY PI (BOARD CONNECTS OUTWARD)</text>`;
+    logo.querySelector('.color').innerHTML = s;
+  })();
+
+  /* ---------- scroll reveal, re-run on every page change ---------- */
+  const io = ('IntersectionObserver' in window && !reduceMotion)
+    ? new IntersectionObserver(entries => entries.forEach(en => {
+        if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+      }), { threshold: 0.12, rootMargin: '0px 0px -40px 0px' })
+    : null;
+  function revealIn(page) {
+    const els = page.querySelectorAll('.aims, .split, .photo-pair, .safety, .band-grid, .wide, .spectrum, section.block h2, .prose, .refs-list, .facts, .pipeline, .rail-item, .playground, .specs, .two-col, .trio, .fig-grid, .note, .person, .refs, .page-head .intro');
+    if (!io) { els.forEach(el => el.classList.add('in')); return; }
+    els.forEach(el => { if (!el.classList.contains('in')) { if (!el.classList.contains('spectrum')) el.classList.add('reveal'); io.observe(el); } });
+  }
+
+  /* ---------- design page accordions ---------- */
+  document.querySelectorAll('.acc-head').forEach(btn => btn.addEventListener('click', () => {
+    const row = btn.closest('.acc-row'), open = !row.classList.contains('open');
+    row.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', open);
+  }));
+
+  /* ---------- team accordion ---------- */
+  document.querySelectorAll('.person-head').forEach(btn => btn.addEventListener('click', () => {
+    const row = btn.closest('.person-row'), open = !row.classList.contains('open');
+    row.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', open);
+  }));
+  document.querySelectorAll('.team-filter a').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('.team-filter a').forEach(x => x.classList.toggle('on', x === a));
+    const row = document.getElementById(a.dataset.jump);
+    row.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+    if (!row.classList.contains('open')) row.querySelector('.person-head').click();
+  }));
+
+  /* ---------- timeline roadmap (from the GitHub project) ---------- */
+  (() => {
+    const root = document.getElementById('roadmap');
+    if (!root) return;
+    const START = new Date(2026, 8, 14), DAYS = 91;            // Sep 14 - Dec 13, 2026
+    const idx = (m, d) => Math.round((new Date(2026, m - 1, d) - START) / 864e5);
+    const pct = i => (i / DAYS * 100).toFixed(3) + '%';
+    const fmt = (m, d) => new Date(2026, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // [title, issue, start [m,d], end [m,d] | null (one day) | 'ongoing', closed?]
+    const groups = [
+      ['Proposal & planning', [
+        ['Formal proposal', 4, [9, 14], [9, 20], 1],
+        ['Order parts', 5, [9, 14], [9, 23], 1],
+        ['Research what needs to be ordered', 1, [9, 20], null, 1],
+        ['Peer review comments', 7, [9, 21], [9, 23], 1],
+        ['Revision of written proposal', null, [9, 28], [10, 2], 1]]],
+      ['Hardware', [
+        ['Research and finalize circuit design', 12, [9, 17], [9, 24], 1],
+        ['Build circuit, check with oscilloscope', 13, [9, 29], [10, 2], 1],
+        ['Verify FPGA signals with DAC + oscilloscope', 16, [9, 29], [10, 2], 1]]],
+      ['FPGA & software', [
+        ['Read into PYNQ and next steps', 3, [9, 22], null, 1],
+        ['Hello world in a Jupyter notebook', 6, [9, 22], [9, 23], 1],
+        ['Set up PYNQ over Ethernet', 2, [9, 23], null, 1],
+        ['Pseudocode for the FPGA', 18, [10, 1], null, 1],
+        ['Program the FPGA and ADC to extract the signal', 14, [10, 8], null, 1],
+        ['Program the FPGA to send out waves', 15, [11, 1], null, 1],
+        ['Program the ARM to do the math on the inputs', 17, [11, 2], 'ongoing', 0],
+        ['Refine the Jupyter dashboard (sweep plots, Cole–Cole fit, calibration)', null, [11, 9], [11, 20], 0]]],
+      ['Website & video update', [
+        ['Draft project website', null, [10, 5], [10, 16], 1],
+        ['Recorded video update (week 8)', null, [10, 12], [10, 16], 1],
+        ['Peer review of website and video', null, [10, 19], [10, 23], 1]]],
+      ['Testing & validation', [
+        ['Frequency sweep and display the impedance spectrum', null, [11, 16], [11, 25], 0],
+        ['Validate on precision resistors and the RC phantom', null, [11, 16], [11, 25], 0],
+        ['Integrate the full system and test on skin', null, [11, 18], [11, 27], 0],
+        ['Compare to published skin impedance data', null, [11, 23], [11, 30], 0]]],
+      ['Final deliverables', [
+        ['Poster draft (progress report 14)', 24, [11, 11], [11, 30], 0],
+        ['Demo day', null, [12, 4], null, 0],
+        ['Final webpage', 25, [11, 11], [12, 11], 0],
+        ['Final report', 28, [11, 11], [12, 11], 0]]]
+    ];
+    // progress reports: each bar runs the week leading up to its Friday due date
+    const reports = [[5, 8, [9, 19], [9, 25], 1], [6, 9, [9, 26], [10, 2], 1], [7, 10, [10, 3], [10, 9], 1], [8, 11, [10, 10], [10, 16], 1],
+      [9, 19, [10, 17], [10, 23], 1], [10, 20, [10, 24], [10, 30], 1], [11, 21, [10, 31], [11, 6], 1], [12, 22, [11, 7], [11, 13], 1], [13, 23, [11, 14], [11, 20], 0]];
+
+    let html = '<div class="rm-axis-label">Task</div><div class="rm-axis">';
+    [['September', 9, 14], ['October', 10, 1], ['November', 11, 1], ['December', 12, 1]].forEach(([n, m, d]) =>
+      html += `<span class="rm-month" style="left:calc(${pct(idx(m, d))} + 6px)">${n}</span>`);
+    for (let i = 0; i < DAYS; i += 7) { const dt = new Date(START.getTime() + i * 864e5); html += `<span class="rm-week" style="left:${pct(i + 0.5)}">${dt.getDate()}</span>`; }
+    html += '</div>';
+    const grid = () => { let g = ''; for (let i = 0; i < DAYS; i += 7) g += `<span class="rm-grid" style="left:${pct(i)}"></span>`; return g; };
+    const bar = (t, n, s, e, done, extra = '', inner = '') => {
+      const a = idx(...s);
+      if (e === null) return `<span class="rm-bar ${done ? '' : 'open'}" style="left:${pct(a)};width:max(34px, ${pct(1)})" data-tip="${t}" data-when="${fmt(...s)}" data-st="${done}"></span>`;
+      const b = e === 'ongoing' ? DAYS : idx(...e) + 1;
+      const when = e === 'ongoing' ? `${fmt(...s)} onward` : `${fmt(...s)} – ${fmt(...e)}`;
+      return `<span class="rm-bar ${done ? '' : 'open'} ${e === 'ongoing' ? 'ongoing' : ''} ${extra}" style="left:${pct(a)};width:max(34px, ${pct(b - a)})" data-tip="${t}" data-when="${when}" data-st="${done}">${inner}</span>`;
+    };
+    let total = 0, closed = 0;
+    groups.forEach(([name, items]) => {
+      const c = items.filter(x => x[4]).length; total += items.length; closed += c;
+      html += `<div class="rm-group"><h3>${name}</h3><span>${c} / ${items.length} closed</span></div>`;
+      items.forEach(([t, n, s, e, done]) => {
+        html += `<div class="rm-label"><span class="st ${done ? 'done' : ''}"></span>${t}</div>`;
+        html += `<div class="rm-track">${grid()}${bar(t, n, s, e, done)}</div>`;
+      });
+    });
+    const rc = reports.filter(r => r[4]).length; total += reports.length; closed += rc;
+    html += `<div class="rm-group"><h3>Weekly progress reports</h3><span>${rc} / ${reports.length} closed</span></div>`;
+    html += `<div class="rm-label"><span class="st ${rc === reports.length ? 'done' : ''}"></span>Progress reports 5–13</div><div class="rm-track">${grid()}`;
+    reports.forEach(([k, n, s, e, done]) => html += bar(`Progress report ${k}`, n, s, e, done, 'rm-seg', k));
+    html += '</div>';
+    const now = new Date(), ti = (now - START) / 864e5;
+    if (ti >= 0 && ti <= DAYS) html += `<span class="rm-today" style="left:calc(300px + (100% - 300px) * ${(ti / DAYS).toFixed(4)})"></span>`;
+    root.innerHTML = html;
+
+    document.getElementById('tl-done').textContent = closed;
+    document.getElementById('tl-total').textContent = total;
+    const fill = document.getElementById('tl-fill');
+    new IntersectionObserver(([en]) => { if (en.isIntersecting) fill.style.width = (closed / total * 100) + '%'; }).observe(fill);
+
+    const tip = document.createElement('div'); tip.className = 'rm-tip'; document.body.appendChild(tip);
+    root.addEventListener('pointerover', e => {
+      const b = e.target.closest('.rm-bar'); if (!b) return;
+      tip.innerHTML = `<b>${b.dataset.tip}</b><span>${b.dataset.when} · ${b.dataset.st === '1' ? 'closed' : 'open'}</span>`;
+      tip.classList.add('show');
+    });
+    root.addEventListener('pointermove', e => { tip.style.left = Math.min(e.clientX + 14, innerWidth - 300) + 'px'; tip.style.top = (e.clientY + 16) + 'px'; });
+    root.addEventListener('pointerout', e => { if (e.target.closest('.rm-bar')) tip.classList.remove('show'); });
+  })();
+
+  route();
+</script>
+</body>
+</html>
